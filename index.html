@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Waste Classifier</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #0f172a;
+            color: #fff;
+            text-align: center;
+        }
+        h2 {
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 12px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 8px;
+            background: #22c55e;
+            color: #000;
+            cursor: pointer;
+        }
+        #webcam-container {
+            margin-top: 15px;
+        }
+        canvas {
+            border-radius: 12px;
+        }
+        #result {
+            margin-top: 15px;
+            font-size: 20px;
+            font-weight: bold;
+        }
+        #confidence {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>♻️ Waste Classifier</h2>
+    <p>Plastic • Cardboard • Metal</p>
+
+    <button onclick="init()">Start Camera</button>
+
+    <div id="webcam-container"></div>
+    <div id="result"></div>
+    <div id="confidence"></div>
+
+<script>
+    // ⚠️ Folder name must match your repo
+    const URL = "./my_model/";
+
+    let model, webcam, maxPredictions;
+
+    async function init() {
+        try {
+            const modelURL = URL + "model.json";
+            const metadataURL = URL + "metadata.json";
+
+            model = await tmImage.load(modelURL, metadataURL);
+            maxPredictions = model.getTotalClasses();
+
+            // ❌ NO FLIP → camera NOT reversed
+            webcam = new tmImage.Webcam(320, 320, false);
+
+            // Use BACK camera (phone)
+            await webcam.setup({ facingMode: "environment" });
+            await webcam.play();
+
+            document.getElementById("webcam-container").innerHTML = "";
+            document.getElementById("webcam-container").appendChild(webcam.canvas);
+
+            window.requestAnimationFrame(loop);
+        } catch (err) {
+            alert("Camera or model error: " + err.message);
+            console.error(err);
+        }
+    }
+
+    async function loop() {
+        webcam.update();
+        await predict();
+        window.requestAnimationFrame(loop);
+    }
+
+    async function predict() {
+        const predictions = await model.predict(webcam.canvas);
+
+        // Get highest prediction
+        let best = predictions.reduce((a, b) =>
+            a.probability > b.probability ? a : b
+        );
+
+        document.getElementById("result").innerText =
+            "Detected: " + best.className;
+
+        document.getElementById("confidence").innerText =
+            "Confidence: " + (best.probability * 100).toFixed(1) + "%";
+    }
+</script>
+</body>
+</html>
